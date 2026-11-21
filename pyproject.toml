@@ -8,12 +8,16 @@ dependencies = [
     "authlib>=1.9.5",
     "dishka>=1.10.1",
     "fastapi[standard]>=0.162.0",
+    "httpx>=0.28.1",
     "itsdangerous>=2.2.0",
     "loguru>=0.7.3",
     "pydantic-settings>=2.16.2",
 ]
 
 [dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
 lint = [
     "ruff>=0.17.4",
 ]

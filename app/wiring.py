@@ -4,7 +4,10 @@ from functools import partial
 from authlib.integrations.starlette_client import OAuth
 from dishka import Provider, Scope, from_context, provide
 
-from app.adapters.oauth import get_oauth_configs
+from app.adapters.oauth import (
+    OAuthData,
+    get_oauth_data,
+)
 from app.api.routes.oauth import CallbackRegistry, RedirectUriRegistry
 from app.settings import Settings
 
@@ -14,15 +17,19 @@ class OAuthProvider(Provider):
     settings = from_context(Settings)
 
     @provide
-    def wire_oauth(self, settings: Settings) -> OAuth:
+    def wire_oauth_data(self) -> OAuthData:
+        return OAuthData(get_oauth_data())
+
+    @provide
+    def wire_oauth(self, settings: Settings, data: OAuthData) -> OAuth:
         oauth = OAuth()
-        for name, config in get_oauth_configs().items():
-            credentials = settings.oauth[name]
+        for key, value in data.items():
+            credentials = settings.oauth[key]
             oauth.register(
-                name=name,
+                name=key,
                 client_id=credentials.client_id,
                 client_secret=credentials.client_secret.get_secret_value(),
-                **asdict(config),
+                **asdict(value.config),
             )
         return oauth
 
@@ -31,25 +38,29 @@ class OAuthProvider(Provider):
         self,
         oauth: OAuth,
         settings: Settings,
+        data: OAuthData,
     ) -> RedirectUriRegistry:
-        return RedirectUriRegistry(
-            {
-                name: partial(
-                    oauth.create_client(name).authorize_redirect,
-                    redirect_uri=settings.oauth[name].redirect_uri,
-                )
-                for name in get_oauth_configs()
-            },
-        )
+        return RedirectUriRegistry({
+            name: partial(
+                oauth.create_client(name).authorize_redirect,
+                redirect_uri=settings.oauth[name].redirect_uri,
+            )
+            for name in data
+        })
 
     @provide
-    def wire_oauth_callback(self, oauth: OAuth) -> CallbackRegistry:
-        return CallbackRegistry(
-            {
-                name: oauth.create_client(name).authorize_access_token
-                for name in get_oauth_configs()
-            },
-        )
+    def wire_oauth_callback(
+        self,
+        oauth: OAuth,
+        data: OAuthData,
+    ) -> CallbackRegistry:
+        return CallbackRegistry({
+            key: partial(
+                value.fetch_identity,
+                client=oauth.create_client(key),
+            )
+            for key, value in data.items()
+        })
 
 
 def get_all_providers() -> frozenset[Provider]:

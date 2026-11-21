@@ -74,7 +74,7 @@ known-first-party = ["app"]
 
 [lint.per-file-ignores]
 "oauth.py" = [
-    "missing-return-type-undocumented-public-function",
+    "missing-return-type-public-function",
     "unused-function-argument",
 ]
 "errors.py" = [
