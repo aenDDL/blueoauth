@@ -1,14 +1,22 @@
+import datetime as dt
 from dataclasses import asdict
 from functools import partial
 
 from authlib.integrations.starlette_client import OAuth
 from dishka import Provider, Scope, from_context, provide
+from joserfc import jwk
 
 from app.adapters.oauth import (
     OAuthData,
     get_oauth_data,
 )
-from app.api.routes.oauth import CallbackRegistry, RedirectUriRegistry
+from app.api.routes.oauth import (
+    CallbackRegistry,
+    CookieConfig,
+    CreateAccessTokenFn,
+    RedirectUriRegistry,
+)
+from app.services.tokens import create_access_token
 from app.settings import Settings
 
 
@@ -63,5 +71,26 @@ class OAuthProvider(Provider):
         })
 
 
+class SecurityProvider(Provider):
+    scope = Scope.APP
+
+    @provide
+    def wire_cookie_config(self, s: Settings) -> CookieConfig:
+        return CookieConfig(**s.fastapi.access_cookie.model_dump())
+
+    @provide(provides=CreateAccessTokenFn)
+    def wire_create_access_token(
+        self,
+        s: Settings,
+    ) -> CreateAccessTokenFn:
+        return partial(
+            create_access_token,
+            get_now=partial(dt.datetime.now, dt.UTC),
+            expires_delta=dt.timedelta(seconds=s.fastapi.access_cookie.max_age),
+            secret_key=jwk.import_key(s.jwt.secret_key.get_secret_value(), "oct"),
+            algorithm=s.jwt.algorithm,
+        )
+
+
 def get_all_providers() -> frozenset[Provider]:
-    return frozenset({OAuthProvider()})
+    return frozenset({OAuthProvider(), SecurityProvider()})

@@ -1,4 +1,6 @@
-from pydantic import BaseModel, SecretStr
+from typing import Literal
+
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
@@ -13,8 +15,22 @@ class OAuthSettings(BaseModel):
     redirect_uri: str
 
 
+class JWTSettings(BaseModel):
+    algorithm: str = "HS256"
+    secret_key: SecretStr
+
+
+class AccessCookieSettings(BaseModel):
+    max_age: int = 60 * 30
+    path: str = "/api"
+    secure: bool = True
+    httponly: bool = True
+    samesite: Literal["lax", "strict", "none"] = "lax"
+
+
 class FastAPISettings(BaseModel):
     oauth_prefix: str = "/oauth"
+    access_cookie: AccessCookieSettings = Field(default_factory=AccessCookieSettings)
     https_only: bool = True
     middleware_key: SecretStr
 
@@ -28,3 +44,4 @@ class Settings(BaseSettings):
 
     oauth: dict[OAuthBackend, OAuthSettings]
     fastapi: FastAPISettings
+    jwt: JWTSettings
