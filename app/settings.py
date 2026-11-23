@@ -30,6 +30,7 @@ class AccessCookieSettings(BaseModel):
 
 class FastAPISettings(BaseModel):
     oauth_prefix: str = "/oauth"
+    home_prefix: str = "/api"
     access_cookie: AccessCookieSettings = Field(default_factory=AccessCookieSettings)
     https_only: bool = True
     middleware_key: SecretStr

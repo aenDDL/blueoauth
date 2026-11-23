@@ -4,19 +4,20 @@ from functools import partial
 
 from authlib.integrations.starlette_client import OAuth
 from dishka import Provider, Scope, from_context, provide
-from joserfc import jwk
+from joserfc import jwk, jwt
 
 from app.adapters.oauth import (
     OAuthData,
     get_oauth_data,
 )
+from app.api.routes.home import VerifyTokenFn
 from app.api.routes.oauth import (
     CallbackRegistry,
     CookieConfig,
     CreateAccessTokenFn,
     RedirectUriRegistry,
 )
-from app.services.tokens import create_access_token
+from app.services.tokens import create_access_token, verify_access_token
 from app.settings import Settings
 
 
@@ -89,6 +90,22 @@ class SecurityProvider(Provider):
             expires_delta=dt.timedelta(seconds=s.fastapi.access_cookie.max_age),
             secret_key=jwk.import_key(s.jwt.secret_key.get_secret_value(), "oct"),
             algorithm=s.jwt.algorithm,
+        )
+
+    @provide(provides=VerifyTokenFn)
+    def wire_verify_token(
+        self,
+        s: Settings,
+    ) -> VerifyTokenFn:
+        claims_registry = jwt.JWTClaimsRegistry(
+            leeway=10,
+            exp={"essential": True},
+        )
+        return partial(
+            verify_access_token,
+            secret_key=jwk.import_key(s.jwt.secret_key.get_secret_value(), "oct"),
+            algorithm=s.jwt.algorithm,
+            claims_registry=claims_registry,
         )
 
 

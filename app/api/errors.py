@@ -5,6 +5,8 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse, Response
 from loguru import logger
 
+from app.services.tokens import InvalidTokenError
+
 type ErrorHandler = Callable[[Request, Exception], Awaitable[Response]]
 
 
@@ -19,7 +21,19 @@ async def handle_oauth_error(
     )
 
 
+async def handle_jwt_decode_error(
+    _request: Request,
+    exc: InvalidTokenError,
+) -> JSONResponse:
+    logger.error("Error occurred during authorization.\n{}", exc)
+    return JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={"detail": "Invalid token."},
+    )
+
+
 def get_error_handlers() -> dict[type[Exception], ErrorHandler]:
     return {
         OAuthError: handle_oauth_error,
+        InvalidTokenError: handle_jwt_decode_error,
     }

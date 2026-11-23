@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.api.errors import get_error_handlers
-from app.api.routes import oauth
+from app.api.routes import home, oauth
 from app.settings import FastAPISettings, Settings
 from app.wiring import get_all_providers
 
@@ -23,7 +23,8 @@ def create_app(settings: FastAPISettings, container: AsyncContainer) -> FastAPI:
         lifespan=lifespan,
         exception_handlers=get_error_handlers(),
     )
-    app.include_router(oauth.router, prefix=settings.oauth_prefix)
+    app.include_router(oauth.router, prefix=settings.oauth_prefix, tags=["oauth"])
+    app.include_router(home.router, prefix=settings.home_prefix, tags=["api"])
     app.add_middleware(
         SessionMiddleware,
         secret_key=settings.middleware_key.get_secret_value(),
